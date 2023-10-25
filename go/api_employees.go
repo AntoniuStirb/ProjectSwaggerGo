@@ -17,9 +17,43 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 func DeleteEmployeeById(w http.ResponseWriter, r *http.Request) {
+	// Extract the employeeId from the request path
+	vars := mux.Vars(r)
+	employeeID := vars["employeeId"]
+
+	empID, err := strconv.Atoi(employeeID)
+	if err != nil {
+		http.Error(w, "Invalid employee id", http.StatusBadRequest)
+		return
+	}
+
+	var exists bool
+	err = database.DB.QueryRow("SELECT CASE WHEN EXISTS (SELECT 1 FROM employees WHERE id = @id) THEN 1 ELSE 0 END", sql.Named("id", empID)).Scan(&exists)
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	if !exists {
+		// The employee with the specified ID doesn't exist
+		http.Error(w, "Employee not found", http.StatusNotFound)
+		return
+	}
+
+	_, err = database.DB.Exec("DELETE FROM employees WHERE id = @id", sql.Named("id", empID))
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 }
@@ -39,8 +73,26 @@ func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	employeeID := vars["employeeId"]
 
-	// Parse the employee ID to the appropriate data type (e.g., integer)
-	// You can use strconv.Atoi or another method based on the data type you are using for employee IDs.
+	empID, err := strconv.Atoi(employeeID)
+	if err != nil {
+		http.Error(w, "Invalid employee id", http.StatusBadRequest)
+		return
+	}
+
+	var exists bool
+	err = database.DB.QueryRow("SELECT CASE WHEN EXISTS (SELECT 1 FROM employees WHERE id = @id) THEN 1 ELSE 0 END", sql.Named("id", empID)).Scan(&exists)
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	if !exists {
+		// The employee with the specified ID doesn't exist
+		http.Error(w, "Employee not found", http.StatusNotFound)
+		return
+	}
 
 	// Decode the request body into a struct
 	var employee Employee // Define the Employee struct (you may need to adjust this based on your data model)
@@ -53,7 +105,7 @@ func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
 	// Update the employee in the database using the provided employeeID
 	// You should write SQL code to update the employee with the given ID
 	// Here's a sample using the database/sql package:
-	_, err := database.DB.Exec(`
+	_, err = database.DB.Exec(`
         UPDATE employees
 			SET userId = @userId,
 			firstName = @firstName,
@@ -73,7 +125,7 @@ func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
 			endingDate = @endingDate,
 			hasMedicalPackage = @hasMedicalPackage,
 			status = @status
-        WHERE Id = @employeeId`,
+        WHERE id = @id`,
 		sql.Named("userId", employee.UserId),
 		sql.Named("firstName", employee.FirstName),
 		sql.Named("lastName", employee.LastName),
@@ -92,7 +144,7 @@ func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
 		sql.Named("endingDate", employee.EndingDate),
 		sql.Named("hasMedicalPackage", employee.HasMedicalPackage),
 		sql.Named("status", employee.Status),
-		sql.Named("employeeId", employeeID), // Bind the employeeId from the request path
+		sql.Named("id", empID), // Bind the employeeId from the request path
 	)
 
 	if err != nil {
