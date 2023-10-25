@@ -160,6 +160,7 @@ func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
 func EmployeesPost(w http.ResponseWriter, r *http.Request) {
 	var employee NewEmployee
 	decoder := json.NewDecoder(r.Body)
+
 	if err := decoder.Decode(&employee); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
@@ -196,13 +197,128 @@ func EmployeesPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllEmployees(w http.ResponseWriter, r *http.Request) {
+	// Query all employees from the database
+	rows, err := database.DB.Query("SELECT * FROM employees")
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var employees []Employee
+	for rows.Next() {
+		var employee Employee // Define the Employee struct (you may need to adjust this based on your data model)
+		err := rows.Scan(
+			&employee.Id,
+			&employee.UserId,
+			&employee.FirstName,
+			&employee.LastName,
+			&employee.CNP,
+			&employee.JobTitle,
+			&employee.City,
+			&employee.PhoneNumber,
+			&employee.WorkEmail,
+			&employee.PersonalEmail,
+			&employee.EmployeeRateType,
+			&employee.EmployeeRateValue,
+			&employee.ContractType,
+			&employee.Currency,
+			&employee.VacationDays,
+			&employee.StartingDate,
+			&employee.EndingDate,
+			&employee.HasMedicalPackage,
+			&employee.Status,
+		)
+		if err != nil {
+			log.Printf("Database error: %v", err)
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+		employees = append(employees, employee)
+	}
+
+	// Serialize the list of employees as JSON and send it in the response
+	responseJSON, err := json.Marshal(employees)
+	if err != nil {
+		log.Printf("JSON encoding error: %v", err)
+		http.Error(w, "JSON encoding error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
+	w.Write(responseJSON)
 }
 
 func GetEmployeeById(w http.ResponseWriter, r *http.Request) {
+	// Extract the employeeId from the request path
+	vars := mux.Vars(r)
+	employeeID := vars["employeeId"]
+
+	empID, err := strconv.Atoi(employeeID)
+	if err != nil {
+		http.Error(w, "Invalid employee id", http.StatusBadRequest)
+		return
+	}
+
+	// Check if the employee exists in the database
+	var exists bool
+	err = database.DB.QueryRow("SELECT CASE WHEN EXISTS (SELECT 1 FROM employees WHERE id = @id) THEN 1 ELSE 0 END", sql.Named("id", empID)).Scan(&exists)
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	if !exists {
+		// The employee with the specified ID doesn't exist
+		http.Error(w, "Employee not found", http.StatusNotFound)
+		return
+	}
+
+	// Retrieve the employee's information from the database
+	var employee Employee // Define the Employee struct (you may need to adjust this based on your data model)
+	err = database.DB.QueryRow("SELECT * FROM employees WHERE id = @id", sql.Named("id", empID)).Scan(
+		&employee.Id,
+		&employee.UserId,
+		&employee.FirstName,
+		&employee.LastName,
+		&employee.CNP,
+		&employee.JobTitle,
+		&employee.City,
+		&employee.PhoneNumber,
+		&employee.WorkEmail,
+		&employee.PersonalEmail,
+		&employee.EmployeeRateType,
+		&employee.EmployeeRateValue,
+		&employee.ContractType,
+		&employee.Currency,
+		&employee.VacationDays,
+		&employee.StartingDate,
+		&employee.EndingDate,
+		&employee.HasMedicalPackage,
+		&employee.Status,
+	)
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	// Serialize the employee information as JSON and send it in the response
+	responseJSON, err := json.Marshal(employee)
+	if err != nil {
+		log.Printf("JSON encoding error: %v", err)
+		http.Error(w, "JSON encoding error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
+	w.Write(responseJSON)
 }
 
 func GetHistoryForEmployee(w http.ResponseWriter, r *http.Request) {
