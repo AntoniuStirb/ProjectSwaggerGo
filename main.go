@@ -10,9 +10,9 @@
 package main
 
 import (
+	"github.com/AntoniuStirb/ProjectSwaggerGo/database"
 	"log"
 	"net/http"
-
 	// WARNING!
 	// Change this to a fully-qualified import path
 	// once you place this file into your project.
@@ -20,13 +20,17 @@ import (
 	//
 	//    sw "github.com/myname/myrepo/go"
 	//
-	sw "./go"
+	sw "github.com/AntoniuStirb/ProjectSwaggerGo/go"
+	_ "github.com/denisenkom/go-mssqldb"
 )
 
 func main() {
+
+	database.DatabaseInit()
+	defer database.DB.Close()
+
 	log.Printf("Server started")
-
 	router := sw.NewRouter()
-
 	log.Fatal(http.ListenAndServe(":8080", router))
+
 }

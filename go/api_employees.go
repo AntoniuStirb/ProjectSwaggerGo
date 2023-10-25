@@ -10,6 +10,12 @@
 package swagger
 
 import (
+	"database/sql"
+	"encoding/json"
+	"github.com/AntoniuStirb/ProjectSwaggerGo/database"
+	_ "github.com/denisenkom/go-mssqldb"
+	"github.com/gorilla/mux"
+	"log"
 	"net/http"
 )
 
@@ -29,11 +35,110 @@ func EmployeesEmployeeIdPatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
+	// Extract the employeeId from the request path
+	vars := mux.Vars(r)
+	employeeID := vars["employeeId"]
+
+	// Parse the employee ID to the appropriate data type (e.g., integer)
+	// You can use strconv.Atoi or another method based on the data type you are using for employee IDs.
+
+	// Decode the request body into a struct
+	var employee Employee // Define the Employee struct (you may need to adjust this based on your data model)
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&employee); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
+
+	// Update the employee in the database using the provided employeeID
+	// You should write SQL code to update the employee with the given ID
+	// Here's a sample using the database/sql package:
+	_, err := database.DB.Exec(`
+        UPDATE employees
+			SET userId = @userId,
+			firstName = @firstName,
+			lastName = @lastName,
+			CNP = @CNP,
+			jobTitle = @jobTitle,
+			city = @city,
+			phoneNumber = @phoneNumber,
+			workEmail = @workEmail,
+			personalEmail = @personalEmail,
+			employeeRateType = @employeeRateType,
+			employeeRateValue = @employeeRateValue,
+			contractType = @contractType,
+			currency = @currency,
+			vacationDays = @vacationDays,
+			startingDate = @startingDate,
+			endingDate = @endingDate,
+			hasMedicalPackage = @hasMedicalPackage,
+			status = @status
+        WHERE Id = @employeeId`,
+		sql.Named("userId", employee.UserId),
+		sql.Named("firstName", employee.FirstName),
+		sql.Named("lastName", employee.LastName),
+		sql.Named("CNP", employee.CNP),
+		sql.Named("jobTitle", employee.JobTitle),
+		sql.Named("city", employee.City),
+		sql.Named("phoneNumber", employee.PhoneNumber),
+		sql.Named("workEmail", employee.WorkEmail),
+		sql.Named("personalEmail", employee.PersonalEmail),
+		sql.Named("employeeRateType", employee.EmployeeRateType),
+		sql.Named("employeeRateValue", employee.EmployeeRateValue),
+		sql.Named("contractType", employee.ContractType),
+		sql.Named("currency", employee.Currency),
+		sql.Named("vacationDays", employee.VacationDays),
+		sql.Named("startingDate", employee.StartingDate),
+		sql.Named("endingDate", employee.EndingDate),
+		sql.Named("hasMedicalPackage", employee.HasMedicalPackage),
+		sql.Named("status", employee.Status),
+		sql.Named("employeeId", employeeID), // Bind the employeeId from the request path
+	)
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 }
 
 func EmployeesPost(w http.ResponseWriter, r *http.Request) {
+	var employee NewEmployee
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&employee); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
+
+	_, err := database.DB.Exec("INSERT INTO employees (userId, firstName, lastName, CNP, jobTitle, city, phoneNumber, workEmail, personalEmail, employeeRateType, employeeRateValue, contractType, currency, vacationDays, startingDate, endingDate, hasMedicalPackage, status) VALUES (@userId, @firstName, @lastName, @CNP, @jobTitle, @city, @phoneNumber, @workEmail, @personalEmail, @employeeRateType, @employeeRateValue, @contractType, @currency, @vacationDays, @startingDate, @endingDate, @hasMedicalPackage, @status)",
+		sql.Named("userId", employee.UserId),
+		sql.Named("firstName", employee.FirstName),
+		sql.Named("lastName", employee.LastName),
+		sql.Named("CNP", employee.CNP),
+		sql.Named("jobTitle", employee.JobTitle),
+		sql.Named("city", employee.City),
+		sql.Named("phoneNumber", employee.PhoneNumber),
+		sql.Named("workEmail", employee.WorkEmail),
+		sql.Named("personalEmail", employee.PersonalEmail),
+		sql.Named("employeeRateType", employee.EmployeeRateType),
+		sql.Named("employeeRateValue", employee.EmployeeRateValue),
+		sql.Named("contractType", employee.ContractType),
+		sql.Named("currency", employee.Currency),
+		sql.Named("vacationDays", employee.VacationDays),
+		sql.Named("startingDate", employee.StartingDate),
+		sql.Named("endingDate", employee.EndingDate),
+		sql.Named("hasMedicalPackage", employee.HasMedicalPackage),
+		sql.Named("status", employee.Status),
+	)
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 }
