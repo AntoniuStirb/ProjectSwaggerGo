@@ -21,7 +21,7 @@ import (
 )
 
 func DeleteEmployeeById(w http.ResponseWriter, r *http.Request) {
-	// Extract the employeeId from the request path
+
 	vars := mux.Vars(r)
 	employeeID := vars["employeeId"]
 
@@ -41,7 +41,6 @@ func DeleteEmployeeById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !exists {
-		// The employee with the specified ID doesn't exist
 		http.Error(w, "Employee not found", http.StatusNotFound)
 		return
 	}
@@ -55,7 +54,7 @@ func DeleteEmployeeById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func EmployeesEmployeeIdPasswordPut(w http.ResponseWriter, r *http.Request) {
@@ -64,12 +63,55 @@ func EmployeesEmployeeIdPasswordPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func EmployeesEmployeeIdPatch(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	employeeID := vars["employeeId"]
+
+	empID, err := strconv.Atoi(employeeID)
+	if err != nil {
+		http.Error(w, "Invalid employee id", http.StatusBadRequest)
+		return
+	}
+
+	//Decode the request body into the Employee struct
+	var updatedEmployee Employee
+
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&updatedEmployee); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
+
+	//Check if the employee exists in the database
+	var exists bool
+	err = database.DB.QueryRow("SELECT CASE WHEN EXISTS (SELECT 1 FROM employees WHERE id = @id) THEN 1 ELSE 0 END", sql.Named("id", empID)).Scan(&exists)
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	// The employee with the specified ID doesn't exist
+	if !exists {
+		http.Error(w, "Employee not found", http.StatusNotFound)
+		return
+	}
+
+	_, err = database.DB.Exec("UPDATE employees SET status = @status WHERE id = @id", sql.Named("status", updatedEmployee.Status), sql.Named("id", empID))
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 }
 
 func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
-	// Extract the employeeId from the request path
+
 	vars := mux.Vars(r)
 	employeeID := vars["employeeId"]
 
@@ -89,22 +131,18 @@ func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !exists {
-		// The employee with the specified ID doesn't exist
 		http.Error(w, "Employee not found", http.StatusNotFound)
 		return
 	}
 
-	// Decode the request body into a struct
-	var employee Employee // Define the Employee struct (you may need to adjust this based on your data model)
+	var employee Employee
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&employee); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
 	}
 
-	// Update the employee in the database using the provided employeeID
-	// You should write SQL code to update the employee with the given ID
-	// Here's a sample using the database/sql package:
+	//Update the employee in the database using the provided employeeID
 	_, err = database.DB.Exec(`
         UPDATE employees
 			SET userId = @userId,
@@ -193,11 +231,11 @@ func EmployeesPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 }
 
 func GetAllEmployees(w http.ResponseWriter, r *http.Request) {
-	// Query all employees from the database
+
 	rows, err := database.DB.Query("SELECT * FROM employees")
 	if err != nil {
 		log.Printf("Database error: %v", err)
@@ -208,7 +246,7 @@ func GetAllEmployees(w http.ResponseWriter, r *http.Request) {
 
 	var employees []Employee
 	for rows.Next() {
-		var employee Employee // Define the Employee struct (you may need to adjust this based on your data model)
+		var employee Employee
 		err := rows.Scan(
 			&employee.Id,
 			&employee.UserId,
@@ -238,7 +276,6 @@ func GetAllEmployees(w http.ResponseWriter, r *http.Request) {
 		employees = append(employees, employee)
 	}
 
-	// Serialize the list of employees as JSON and send it in the response
 	responseJSON, err := json.Marshal(employees)
 	if err != nil {
 		log.Printf("JSON encoding error: %v", err)
@@ -252,7 +289,7 @@ func GetAllEmployees(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetEmployeeById(w http.ResponseWriter, r *http.Request) {
-	// Extract the employeeId from the request path
+
 	vars := mux.Vars(r)
 	employeeID := vars["employeeId"]
 
@@ -262,7 +299,6 @@ func GetEmployeeById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if the employee exists in the database
 	var exists bool
 	err = database.DB.QueryRow("SELECT CASE WHEN EXISTS (SELECT 1 FROM employees WHERE id = @id) THEN 1 ELSE 0 END", sql.Named("id", empID)).Scan(&exists)
 
@@ -273,13 +309,11 @@ func GetEmployeeById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !exists {
-		// The employee with the specified ID doesn't exist
 		http.Error(w, "Employee not found", http.StatusNotFound)
 		return
 	}
 
-	// Retrieve the employee's information from the database
-	var employee Employee // Define the Employee struct (you may need to adjust this based on your data model)
+	var employee Employee
 	err = database.DB.QueryRow("SELECT * FROM employees WHERE id = @id", sql.Named("id", empID)).Scan(
 		&employee.Id,
 		&employee.UserId,
@@ -308,7 +342,6 @@ func GetEmployeeById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Serialize the employee information as JSON and send it in the response
 	responseJSON, err := json.Marshal(employee)
 	if err != nil {
 		log.Printf("JSON encoding error: %v", err)
