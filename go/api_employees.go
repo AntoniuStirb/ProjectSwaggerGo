@@ -13,6 +13,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"github.com/AntoniuStirb/ProjectSwaggerGo/database"
+	"github.com/AntoniuStirb/ProjectSwaggerGo/models"
+	"github.com/AntoniuStirb/ProjectSwaggerGo/service"
 	_ "github.com/denisenkom/go-mssqldb"
 	"github.com/gorilla/mux"
 	"log"
@@ -74,7 +76,7 @@ func EmployeesEmployeeIdPatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Decode the request body into the Employee struct
-	var updatedEmployee Employee
+	var updatedEmployee models.Employee
 
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&updatedEmployee); err != nil {
@@ -135,7 +137,7 @@ func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var employee Employee
+	var employee models.Employee
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&employee); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -196,7 +198,7 @@ func EmployeesEmployeeIdPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func EmployeesPost(w http.ResponseWriter, r *http.Request) {
-	var employee NewEmployee
+	var employee models.NewEmployee
 	decoder := json.NewDecoder(r.Body)
 
 	if err := decoder.Decode(&employee); err != nil {
@@ -235,50 +237,14 @@ func EmployeesPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllEmployees(w http.ResponseWriter, r *http.Request) {
-
-	rows, err := database.DB.Query("SELECT * FROM employees")
+	employees, err := service.GetAllEmployees()
 	if err != nil {
-		log.Printf("Database error: %v", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-	defer rows.Close()
-
-	var employees []Employee
-	for rows.Next() {
-		var employee Employee
-		err := rows.Scan(
-			&employee.Id,
-			&employee.UserId,
-			&employee.FirstName,
-			&employee.LastName,
-			&employee.CNP,
-			&employee.JobTitle,
-			&employee.City,
-			&employee.PhoneNumber,
-			&employee.WorkEmail,
-			&employee.PersonalEmail,
-			&employee.EmployeeRateType,
-			&employee.EmployeeRateValue,
-			&employee.ContractType,
-			&employee.Currency,
-			&employee.VacationDays,
-			&employee.StartingDate,
-			&employee.EndingDate,
-			&employee.HasMedicalPackage,
-			&employee.Status,
-		)
-		if err != nil {
-			log.Printf("Database error: %v", err)
-			http.Error(w, "Database error", http.StatusInternalServerError)
-			return
-		}
-		employees = append(employees, employee)
 	}
 
 	responseJSON, err := json.Marshal(employees)
 	if err != nil {
-		log.Printf("JSON encoding error: %v", err)
 		http.Error(w, "JSON encoding error", http.StatusInternalServerError)
 		return
 	}
@@ -313,7 +279,7 @@ func GetEmployeeById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var employee Employee
+	var employee models.Employee
 	err = database.DB.QueryRow("SELECT * FROM employees WHERE id = @id", sql.Named("id", empID)).Scan(
 		&employee.Id,
 		&employee.UserId,
